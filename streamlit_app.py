@@ -5,58 +5,6 @@ import openai
 # Load OpenAI API key
 openai.api_key = st.secrets["openai_api_key"]
 
-# # Load the job descriptions dataset
-# @st.cache_data
-# def load_job_descriptions():
-#     # Update with the path to your dataset
-#     return pd.read_csv("Internship_Links.csv")
-
-# # Function to get LLM-based similarity score
-# def get_similarity_score(resume_text, job_description):
-#     prompt = f"""
-#     Compare the following resume to the job description and rate the match on a scale of 1 to 10.
-#     - Resume: {resume_text}
-#     - Job Description: {job_description}
-    
-#     Return only the rating as an integer.
-#     """
-#     response = openai.Completion.create(
-#         engine="text-davinci-003",
-#         prompt=prompt,
-#         max_tokens=10
-#     )
-#     return int(response.choices[0].text.strip())
-
-# # Streamlit App
-# st.title("Resume and Job Description Matching")
-
-# # Allow user to upload resume
-# uploaded_file = st.file_uploader("Upload your resume", type=["txt", "pdf", "docx"])
-
-# # Load job descriptions data
-# job_descriptions = load_job_descriptions()
-
-# if uploaded_file:
-#     # Read the uploaded resume file
-#     resume_text = uploaded_file.read().decode("utf-8")
-#     st.write("**Resume Text:**")
-#     st.text(resume_text)
-
-#     # Compare resume with each job description in the dataset
-#     st.write("### Job Matches")
-#     results = []
-#     for _, row in job_descriptions.iterrows():
-#         job_title = row["job_title"]
-#         job_description = row["job_description"]
-#         similarity_score = get_similarity_score(resume_text, job_description)
-#         results.append((job_title, similarity_score))
-    
-#     # Display the top job matches
-#     top_matches = sorted(results, key=lambda x: x[1], reverse=True)[:5]
-#     for title, score in top_matches:
-#         st.write(f"**{title}**: Match Score = {score}/10")
-
-
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
@@ -85,9 +33,43 @@ def get_job_description_text(url):
     except Exception as e:
         st.warning(f"Could not retrieve job description from {url}: {e}")
         return ""
+    
+def get_applicant_type_from_description(job_description):
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant that identifies the intended applicant type for a job posting."},
+        {"role": "user", "content": f"Based on the following job description, specify the intended applicant type as one of these options: 'High School', 'Undergraduate', 'Graduate', 'Professional'.\n\nJob Description: {job_description}\n\nReturn only the applicant type as a single word."}
+    ]
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        max_tokens=10,
+        temperature=0
+    )
+    applicant_type_text = response.choices[0].message['content'].strip()
+    return applicant_type_text
+
+def get_eligibility_type_from_description(job_description):
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant that identifies the citizenship eligibility for a job posting."},
+        {"role": "user", "content": f"Based on the following job description, specify the intended citizenship type as one of these options: 'US Citizen Only', 'Permanent Resident', 'Visa Holder'.\n\nJob Description: {job_description}\n\nReturn only the citizenship type as a single word."}
+    ]
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        max_tokens=10,
+        temperature=0
+    )
+    citizenship_type_text = response.choices[0].message['content'].strip()
+    return citizenship_type_text
 
 # Function to get LLM-based similarity score with ChatCompletion
 def get_similarity_score(resume_text, job_description):
+    # Check if the job description's applicant type matches the user's selection
+    job_applicant_type = get_applicant_type_from_description(job_description)
+    if job_applicant_type.lower() != applicant_type.lower():
+        return 0  # Return a low score if it doesn't match
+
+    # If it matches, proceed with similarity scoring
     messages = [
         {"role": "system", "content": "You are a helpful assistant that evaluates resume and job description similarity."},
         {"role": "user", "content": f"Compare the following resume to the job description and rate the match on a scale of 1 to 10.\n- Resume: {resume_text}\n- Job Description: {job_description}\n\nReturn only the rating as an integer."}
@@ -98,7 +80,6 @@ def get_similarity_score(resume_text, job_description):
         max_tokens=10,
         temperature=0
     )
-    # Extract the score from the response content
     score_text = response.choices[0].message['content'].strip()
     return int(score_text)
 
