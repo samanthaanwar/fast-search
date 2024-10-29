@@ -61,6 +61,7 @@ import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
 
+
 # read in file of job links
 file = pd.read_csv('Internship_Links.csv')
 job_links = file['Link']
