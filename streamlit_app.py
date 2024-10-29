@@ -56,16 +56,15 @@ openai.api_key = st.secrets["openai_api_key"]
 #     for title, score in top_matches:
 #         st.write(f"**{title}**: Match Score = {score}/10")
 
-import streamlit as st
-import openai
+
 import requests
 from bs4 import BeautifulSoup
 from PyPDF2 import PdfReader
-import pandas as pd
 
 # read in file of job links
 file = pd.read_csv('Internship_Links.csv')
 job_links = file['Link']
+
 
 # Function to extract text from a PDF file
 def extract_text_from_pdf(pdf_file):
@@ -79,28 +78,27 @@ def extract_text_from_pdf(pdf_file):
 def get_job_description_text(url):
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Check for successful response
+        response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
-        return soup.get_text()  # Gets all visible text on the page
+        return soup.get_text()
     except Exception as e:
         st.warning(f"Could not retrieve job description from {url}: {e}")
         return ""
 
-# Function to get LLM-based similarity score
 # Function to get LLM-based similarity score with ChatCompletion
 def get_similarity_score(resume_text, job_description):
     messages = [
         {"role": "system", "content": "You are a helpful assistant that evaluates resume and job description similarity."},
         {"role": "user", "content": f"Compare the following resume to the job description and rate the match on a scale of 1 to 10.\n- Resume: {resume_text}\n- Job Description: {job_description}\n\nReturn only the rating as an integer."}
     ]
-    response = openai.ChatCompletion.create(
+    response = openai.ChatCompletion.acreate(
         model="gpt-3.5-turbo",
         messages=messages,
         max_tokens=10,
         temperature=0
     )
-    return int(response.choices[0].message['content'].strip())
-
+    score_text = response.choices[0].message['content'].strip()
+    return int(score_text)
 
 # Streamlit App
 st.title("Resume and Job Description Matching")
@@ -112,14 +110,14 @@ if resume_pdf:
     # Extract text from the resume PDF
     resume_text = extract_text_from_pdf(resume_pdf)
     st.write("**Resume Text:**")
-    st.text(resume_text[:500] + "...")  # Display first 500 characters of resume
+    st.text(resume_text[:500] + "...")
 
     # Compare the resume with each job description
     st.write("### Job Matches")
     results = []
     for url in job_links:
         job_description_text = get_job_description_text(url)
-        if job_description_text:  # Ensure we got some text
+        if job_description_text:
             similarity_score = get_similarity_score(resume_text, job_description_text)
             results.append((url, similarity_score))
 
@@ -127,3 +125,4 @@ if resume_pdf:
     top_matches = sorted(results, key=lambda x: x[1], reverse=True)[:3]
     for url, score in top_matches:
         st.write(f"**Job URL:** {url} | **Match Score:** {score}/10")
+
