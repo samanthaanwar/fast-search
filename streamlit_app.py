@@ -92,12 +92,13 @@ def get_similarity_score(resume_text, job_description):
         {"role": "system", "content": "You are a helpful assistant that evaluates resume and job description similarity."},
         {"role": "user", "content": f"Compare the following resume to the job description and rate the match on a scale of 1 to 10.\n- Resume: {resume_text}\n- Job Description: {job_description}\n\nReturn only the rating as an integer."}
     ]
-    response = openai.ChatCompletion.acreate(
+    response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=messages,
         max_tokens=10,
         temperature=0
     )
+    # Extract the score from the response content
     score_text = response.choices[0].message['content'].strip()
     return int(score_text)
 
@@ -106,6 +107,19 @@ st.title("Resume and Job Description Matching")
 
 # Upload the resume in PDF format
 resume_pdf = st.file_uploader("Upload your resume in PDF format", type=["pdf"])
+citizenship = st.selectbox("Eligibility", 
+    ["U.S. Citizen", "Permanent Resident", "Visa", "Other"])
+
+applicant_type = st.selectbox("Applicant Type", [
+    "High School", 
+    "Undergraduate - Freshman", 
+    "Undergraduate - Sophomore",
+    "Undergraduate - Junior",
+    "Undergraduate - Senior",
+    "Graduate - Masters",
+    "Graduate - PhD", 
+    "Postdoctoral"
+])
 
 if resume_pdf:
     # Extract text from the resume PDF
